@@ -1,0 +1,107 @@
+---
+title: "APM466A1"
+author: "Jiusi Li"
+date: "2022/2/13"
+output: pdf_document
+---
+
+```{r message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(formattable)
+```
+
+```{r}
+a1 <- read.csv('a1.csv')
+a1 <- a1 %>% 
+  mutate(time_diff = as.numeric(difftime(Maturity_Date, Access_Date, units = "weeks")/52.25))
+a1 <- a1 %>% 
+  mutate(yield = (Issue_Price / Close_Price)^(1/5) - 1)
+a1 <- a1 %>% 
+  mutate(yield = percent(yield))
+```
+
+```{r}
+a1 %>% 
+  ggplot(aes(x=time_diff, y=yield, group = Access_Date, color = Access_Date)) +
+  geom_line() +
+  theme(axis.text.x = element_text(colour = "grey20", size = 8, angle = 60, hjust = 0.5, vjust = 0.5),
+                        axis.text.y = element_text(colour = "grey20", size = 8),
+                        strip.text = element_text(face = "italic"),
+                        text = element_text(size = 8)) +
+  labs(title = '5-year Yield Curve',
+       x = 'YTM',
+       y = 'Yield') 
+```
+
+```{r}
+a1 <- a1 %>% 
+  mutate(spot5 = (Issue_Price / Close_Price)^(1/5) - 1)
+```
+
+```{r}
+a1 %>% 
+  ggplot(aes(x=time_diff, y=spot5, group = Access_Date, color = Access_Date)) +
+  geom_line() +
+  theme(axis.text.x = element_text(colour = "grey20", size = 8, angle = 60, hjust = 0.5, vjust = 0.5),
+                        axis.text.y = element_text(colour = "grey20", size = 8),
+                        strip.text = element_text(face = "italic"),
+                        text = element_text(size = 8)) +
+  labs(title = '5-year Spot Curve',
+       x = 'YTM',
+       y = 'Spot Rate') 
+```
+
+```{r}
+a1 <- a1 %>% 
+  mutate(Year = case_when(time_diff < 2 ~ '1year-1year',
+                          time_diff < 3 & time_diff > 2  ~ '1year-2year',
+                          time_diff < 4 & time_diff > 3  ~ '1year-3year',
+                          time_diff < 5 & time_diff > 4  ~ '1year-4year'))
+a1 <- a1 %>% 
+  mutate(n1 = case_when(time_diff < 2 ~ 2,
+                          time_diff < 3 & time_diff > 2  ~ 3,
+                          time_diff < 4 & time_diff > 3  ~ 4,
+                          time_diff < 5 & time_diff > 4  ~ 5))
+a1 <- a1 %>% 
+  mutate(f1 = (Issue_Price / Close_Price)^(1/time_diff) - 1)
+a1 <- a1 %>% 
+  mutate(forward = ((1+f1)^n1)/(1+f1)-1)
+
+```
+
+```{r, message=FALSE}
+a2 <- select(a1, forward)
+write.csv(a2, 'a2.csv')
+```
+
+
+```{r}
+a1 %>% 
+  ggplot(aes(x=Year, y=forward, group = Access_Date, color = Access_Date)) +
+  geom_line()+
+  labs(title = 'Forward Curve',
+       x = 'Year',
+       y = 'Forward Rate')
+```
+
+```{r}
+cts1 <- diff(log(a1$yield))[-1]
+cts2 <- diff(log(a1$forward))[-1]
+```
+
+```{r}
+ts <- read.csv('ts.csv')
+cov1 <- cov(ts)
+```
+
+```{r}
+ts2 <- read.csv('ts2.csv')
+cov2 <- cov(ts2)
+```
+
+```{r}
+eigen(ts)
+eigen(ts2)
+```
+
